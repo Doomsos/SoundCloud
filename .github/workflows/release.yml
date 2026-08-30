@@ -1,0 +1,65 @@
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - run: npm ci
+
+      - name: Resolve the release tag
+        id: release
+        shell: bash
+        run: |
+          cfg=$(node -p "require('./src-tauri/tauri.conf.json').version")
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            tag="$GITHUB_REF_NAME"
+            if [ "${tag#v}" != "$cfg" ]; then
+              echo "::error::tag $tag does not match tauri.conf.json version $cfg"
+              exit 1
+            fi
+          else
+            tag="v$cfg"
+          fi
+          echo "releasing as $tag"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      - run: npm run typecheck
+      - run: npm test
+      - run: cargo test --manifest-path src-tauri/Cargo.toml
+
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ steps.release.outputs.tag }}
+          releaseName: SoundCloud ${{ steps.release.outputs.tag }}
+          releaseBody: |
+            The portable exe and both installers are attached below.
+
+            - `soundcloud.exe` - portable, no install
+            - `*-setup.exe` - NSIS installer
+            - `*.msi` - Windows Installer package
+          releaseDraft: false
+          prerelease: false

@@ -1,0 +1,68 @@
+[package]
+name = "soundcloud"
+version = "0.4.0"
+description = "SoundCloud - a cross-platform desktop client."
+authors = ["SoundCloud"]
+edition = "2021"
+rust-version = "1.77"
+
+[lib]
+name = "soundcloud_lib"
+# Desktop only. The Tauri template also emits `staticlib` (iOS) and `cdylib`
+# (Android), which are two more whole-app link steps on every build and, on
+# Windows, a 1.1 GB `.lib` and a 135 MB `.pdb` sitting in `target/debug`.
+# Nothing here links against either - `main.rs` uses the rlib. Add them back
+# beside `rlib` if this ever targets a phone.
+crate-type = ["rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon", "image-png", "image-ico", "protocol-asset"] }
+tauri-plugin-opener = "2"
+tauri-plugin-clipboard-manager = "2"
+tauri-plugin-deep-link = "2"
+
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+reqwest = { version = "0.12", default-features = false, features = [
+  "json", "stream", "rustls-tls", "gzip", "brotli",
+] }
+tokio = { version = "1", features = ["fs", "sync", "time", "macros", "rt-multi-thread"] }
+futures-util = "0.3"
+
+anyhow = "1"
+thiserror = "2"
+regex = "1"
+once_cell = "1"
+chrono = { version = "0.4", features = ["serde"] }
+urlencoding = "2"
+md-5 = "0.10"
+hex = "0.4"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+rand = "0.8"
+base64 = "0.22"
+sha2 = "0.10"
+
+[features]
+custom-protocol = ["tauri/custom-protocol"]
+
+[profile.dev]
+# Backtraces keep file and line; the type information that made up most of the
+# weight in `target/debug` does not.
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+# Dependencies are not stepped through, and their debug info was the bulk of
+# what `target/debug` held - several gigabytes of it.
+debug = false
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+panic = "abort"
+strip = true

@@ -1,0 +1,230 @@
+/* Design tokens. Direct port of `lib/app/theme/colors.dart` and
+   `app_theme.dart`.
+
+   The app is dark-only - the Dart build had a single `ThemeData.dark` and no
+   light variant - so these are defined once on :root rather than swapped by
+   `prefers-color-scheme`. */
+
+@font-face {
+  font-family: "Inter";
+  src: url("/fonts/Inter-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Inter";
+  src: url("/fonts/Inter-Medium.ttf") format("truetype");
+  font-weight: 500;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Inter";
+  src: url("/fonts/Inter-SemiBold.ttf") format("truetype");
+  font-weight: 600;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Inter";
+  src: url("/fonts/Inter-Bold.ttf") format("truetype");
+  font-weight: 700;
+  font-display: swap;
+}
+@font-face {
+  font-family: "JetBrainsMono";
+  src: url("/fonts/JetBrainsMono-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-display: swap;
+}
+
+:root {
+  color-scheme: dark;
+
+  /* --- colour ------------------------------------------------------- */
+  --bg: #0d0d0f;
+  --nav: #09090b;
+  --surface: #141417;
+  --surface2: #1c1c20;
+  --surface3: #26262c;
+  --border: #232329;
+  --border-dim: #17171b;
+  --wave-dim: #34343c;
+
+  --text-hi: #ededf0;
+  --text-mid: #9a9aa6;
+  --text-low: #6a6a76;
+
+  /* SoundCloud orange, and the wash used behind active rows. */
+  --acid: #ff5500;
+  --acid-hi: #ff6a22;
+  --acid-wash: rgba(255, 85, 0, 0.102);
+  --lime: #c6ff00;
+
+  /* --- type --------------------------------------------------------- */
+  --sans: "Inter", -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: "JetBrainsMono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* --- metrics ------------------------------------------------------ */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --border-width: 1px;
+
+  --nav-width: 216px;
+  --nav-width-compact: 60px;
+  --nav-collapse-below: 1080px;
+
+  --top-bar-height: 48px;
+  --player-height: 72px;
+  --player-height-collapsed: 44px;
+
+  --page-pad: 24px;
+  --content-pad-top: 24px;
+  --content-pad-bottom: 40px;
+  --section-gap: 36px;
+  --header-gap: 14px;
+  --card-gap: 16px;
+  --row-height: 52px;
+
+  --motion: 130ms;
+  --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text-hi);
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.4;
+  /* The window has no OS chrome, so nothing here should feel like a document:
+     no text selection or overscroll unless a view opts in. */
+  user-select: none;
+  overscroll-behavior: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Type ramp, matching AppTheme's TextStyle helpers. */
+.t-title {
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.2px;
+  color: var(--text-hi);
+}
+.t-heading {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--text-hi);
+}
+.t-body {
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--text-hi);
+}
+.t-label {
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.4;
+  color: var(--text-mid);
+}
+.t-overline {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.8px;
+  color: var(--text-low);
+  text-transform: uppercase;
+}
+/* Tabular figures keep timecodes from jittering as they count. */
+.t-mono {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-mid);
+  font-variant-numeric: tabular-nums;
+}
+.t-code {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-mid);
+}
+
+.truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+
+input {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  outline: none;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* Scrollbars, ported from the Dart ScrollbarThemeData. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--surface2) transparent;
+}
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--surface2);
+  border-radius: 4px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--surface3);
+}
+
+/* The custom title bar: this region drags the window, its children do not. */
+[data-tauri-drag-region] {
+  app-region: drag;
+  -webkit-app-region: drag;
+}
+[data-tauri-drag-region] button,
+[data-tauri-drag-region] input,
+[data-tauri-drag-region] a {
+  app-region: no-drag;
+  -webkit-app-region: no-drag;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
