@@ -41,7 +41,10 @@ const TRAY_MARGIN: f64 = 12.0;
 /// without these the card would hide and immediately reopen. Ported from the
 /// `_lastToggle` / `_lastDismissed` guards in `tray_controller.dart`.
 const TOGGLE_DEBOUNCE: Duration = Duration::from_millis(250);
-const DISMISS_DEBOUNCE: Duration = Duration::from_millis(400);
+/// Only long enough to absorb the tray click that accompanies a dismissal -
+/// the two arrive within a few milliseconds of each other. It used to be
+/// 400ms, which was long enough to also eat a deliberate re-open.
+const DISMISS_DEBOUNCE: Duration = Duration::from_millis(200);
 
 struct TrayTiming {
     last_toggle: Instant,
@@ -104,6 +107,10 @@ pub fn run() {
             app.manage(state);
 
             build_tray(app.handle())?;
+            // Built now, hidden, so the first tray click shows a window that
+            // already exists instead of paying to create one and waiting on
+            // the webview's first paint.
+            ensure_popup(app.handle());
 
             // In a packaged build the installer registers `soundcloud://`; in
             // dev nothing has, so ask for it at runtime. Failure is not fatal
@@ -137,10 +144,17 @@ pub fn run() {
             // Click-away dismisses the card. Doing it here rather than in the
             // webview keeps the dismiss timestamp next to the click debounce,
             // which is what stops a tray click from hiding and reopening it.
+            //
+            // Only while it is actually on screen. `hide()` costs the window
+            // its focus as well, so an unguarded arm re-stamps the timestamp
+            // for a card that is already gone - starting a fresh blackout at
+            // the moment of closing, which then swallows the next click.
             tauri::WindowEvent::Focused(false) if window.label() == "tray-popup" => {
-                window.hide().ok();
-                if let Ok(mut t) = TRAY_TIMING.lock() {
-                    t.last_dismissed = Instant::now();
+                if window.is_visible().unwrap_or(false) {
+                    window.hide().ok();
+                    if let Ok(mut t) = TRAY_TIMING.lock() {
+                        t.last_dismissed = Instant::now();
+                    }
                 }
             }
             _ => {}
@@ -247,6 +261,34 @@ fn build_tray(app: &tauri::AppHandle) -> tauri::Result<()> {
     Ok(())
 }
 
+/// The tray card, built hidden on first use. Returns `None` only if the
+/// window could not be created at all.
+fn ensure_popup(app: &tauri::AppHandle) -> Option<tauri::WebviewWindow> {
+    if let Some(w) = app.get_webview_window("tray-popup") {
+        return Some(w);
+    }
+    match WebviewWindowBuilder::new(
+        app,
+        "tray-popup",
+        WebviewUrl::App("index.html#/tray".into()),
+    )
+    .title("SoundCloud")
+    .inner_size(TRAY_POPUP.0, TRAY_POPUP.1)
+    .resizable(false)
+    .decorations(false)
+    .always_on_top(true)
+    .skip_taskbar(true)
+    .visible(false)
+    .build()
+    {
+        Ok(w) => Some(w),
+        Err(e) => {
+            tracing::warn!("could not create the tray popup: {e}");
+            None
+        }
+    }
+}
+
 /// Shows or hides the tray card.
 fn toggle_popup(app: &tauri::AppHandle) {
     {
@@ -263,31 +305,7 @@ fn toggle_popup(app: &tauri::AppHandle) {
         timing.last_toggle = now;
     }
 
-    let window = match app.get_webview_window("tray-popup") {
-        Some(w) => w,
-        None => {
-            match WebviewWindowBuilder::new(
-                app,
-                "tray-popup",
-                WebviewUrl::App("index.html#/tray".into()),
-            )
-            .title("SoundCloud")
-            .inner_size(TRAY_POPUP.0, TRAY_POPUP.1)
-            .resizable(false)
-            .decorations(false)
-            .always_on_top(true)
-            .skip_taskbar(true)
-            .visible(false)
-            .build()
-            {
-                Ok(w) => w,
-                Err(e) => {
-                    tracing::warn!("could not create the tray popup: {e}");
-                    return;
-                }
-            }
-        }
-    };
+    let Some(window) = ensure_popup(app) else { return };
 
     if window.is_visible().unwrap_or(false) {
         window.hide().ok();
