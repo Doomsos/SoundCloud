@@ -1,7 +1,7 @@
 {
   "name": "soundcloud",
   "private": true,
-  "version": "0.4.0",
+  "version": "0.5.0",
   "type": "module",
   "description": "SoundCloud - a cross-platform desktop client, Tauri v2 + Rust + React.",
   "scripts": {
