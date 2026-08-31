@@ -16,13 +16,13 @@ can decrypt PlayReady or Widevine, and libmpv could not touch those streams.
 
 Getting there in Flutter took ~290 lines and four workarounds:
 
-- a **loopback HTTP server** to host the player page, because EME is only
+* a **loopback HTTP server** to host the player page, because EME is only
   granted in a secure context and a `file://` page cannot reach the licence
   server;
-- a **hidden second WebView2 window**, via a vendored fork of
+* a **hidden second WebView2 window**, via a vendored fork of
   `desktop_webview_window` patched for macOS;
-- **`evaluateJavaScript`** for every Dart → JS call;
-- **polling `scState()` every 200 ms** for JS → Dart, because the plugin's
+* **`evaluateJavaScript`** for every Dart → JS call;
+* **polling `scState()` every 200 ms** for JS → Dart, because the plugin's
   message handler is a no-op on Windows — with a double-JSON-decode
   workaround for hosts that double-encode the result.
 
@@ -35,12 +35,12 @@ filter that signs licence calls with the anonymous `client_id`.
 
 Measured results against the Flutter build:
 
-| | Flutter | Tauri |
-|---|---|---|
-| Binary | ~40 MB+ | **8.2 MB** |
-| MSI packaging | WiX v5 as a dotnet global tool | built in |
-| DRM playback | loopback server + hidden window + 200 ms polling | an audio element |
-| Extra processes for audio | `audio_service` background isolate | none |
+|                           | Flutter                                          | Tauri            |
+| ------------------------- | ------------------------------------------------ | ---------------- |
+| Binary                    | ~40 MB+                                          | **8.2 MB**       |
+| MSI packaging             | WiX v5 as a dotnet global tool                   | built in         |
+| DRM playback              | loopback server + hidden window + 200 ms polling | an audio element |
+| Extra processes for audio | `audio_service` background isolate               | none             |
 
 ---
 
@@ -58,15 +58,15 @@ src-tauri/src/
   api/
     client.rs          SoundCloud v2 client
     client_id.rs       anonymous client_id scraping, single-flighted
-    auth.rs            OAuth PKCE + loopback callback server
-    dto.rs             wire types
-    mappers.rs         DTO -> domain
+    auth.rs             OAuth PKCE + loopback callback server
+    dto.rs              wire types
+    mappers.rs          DTO -> domain
   core/
-    cache.rs           on-disk audio cache (LRU, HLS reassembly, DRM segments)
-    storage.rs         prefs.json + token store
-    lastfm.rs          scrobbling, with the timing rules as a pure gate
-    log.rs             ring buffer behind the in-app logs view
-    json.rs            lenient accessors
+    cache.rs            on-disk audio cache (LRU, HLS reassembly, DRM segments)
+    storage.rs          prefs.json + token store
+    lastfm.rs           scrobbling, with the timing rules as a pure gate
+    log.rs              ring buffer behind the in-app logs view
+    json.rs             lenient accessors
 
 src/
   api/                 typed IPC wrappers + TanStack Query hooks
@@ -158,52 +158,61 @@ copied anywhere on the machine.
 
 A few deliberate decisions, so they are not mistaken for oversights.
 
-- **`Track.generateWaveform` is not bit-identical.** Dart's seeded `Random` is
+* **`Track.generateWaveform` is not bit-identical.** Dart's seeded `Random` is
   not specified across implementations. The Rust version is deterministic in
   the same seed with the same envelope and jitter shape; the value is a
   decorative placeholder that is replaced by the real waveform JSON and never
   compared.
-- **Stream-candidate ordering is unchanged.** Progressive still leads, even
+* **Stream-candidate ordering is unchanged.** Progressive still leads, even
   though the reason is gone: the Flutter build decoded through libmpv, which
   stalled at 0:00 on the `aac_160k` fMP4 stream. The webview has no such limit,
   so the order is now a preference rather than a workaround. Kept as-is to
   match the original, and noted in `mappers.rs` for whoever revisits it.
-- **`TrackListFeedMapper` was not ported.** It was defined in `mappers.dart`
+* **`TrackListFeedMapper` was not ported.** It was defined in `mappers.dart`
   and called from nowhere.
-- **Queue sequencing was extracted, not rewritten.** `state/queue.ts` holds
+* **Queue sequencing was extracted, not rewritten.** `state/queue.ts` holds
   what were private fields on `PlayerController`. It is the highest-risk logic
   in the port — shuffle, history, the frontier — so it is pure and has 26
   tests.
-- **Home renders shelves only.** `HomeData.stream` is fetched and not shown,
+* **Home renders shelves only.** `HomeData.stream` is fetched and not shown,
   exactly as the Dart `_HomeBody` did — the stream has its own screen at
   `/feed`. Same for `LibraryData.recentlyPlayed`, which the Dart library
   screen never rendered either. Both are kept in the model so the API layer
   stays a faithful port.
-- **The likes tab pages through everything.** `LibraryData.likes` only carries
+* **The likes tab pages through everything.** `LibraryData.likes` only carries
   the first fifty, so the tab reads the `next_href` cursor instead — matching
   `_PaginatedLikesTab`. Every tab has the in-tab filter field.
-- **Prefs keys are unchanged**, so existing settings are picked up:
+* **Prefs keys are unchanged**, so existing settings are picked up:
   `sc_client_id`, `soundcloud_client_id`, `playback_crossfade_ms`,
   `recent_searches`, `clipboardWatch`, `lastfm_session_key`, `lastfm_username`.
 
 ### Not ported
 
-- **The hidden-webview write executor** (`webview_executor.dart`,
+* **The hidden-webview write executor** (`webview_executor.dart`,
   `browser_login.dart`, `webview_login.dart`, `js_runner.dart`). The Dart
   `writeOutcome` tried a hidden webview carrying real browser cookies before
   falling back to the HTTP client; only the HTTP path is ported. The user-facing
   recovery survives: a `blocked` like or repost still offers **verify**, which
   opens soundcloud.com in an app webview to clear the challenge
   (`webview_verification.dart`, ported).
-- **Dev mocks** — `mock_soundcloud_api.dart`, `mock_data.dart`, `mock_tracks.dart`.
-- **Edge-swipe back** (`back_nav.dart`). Trackpad gesture navigation.
-- **Grid/list view toggle** (`view_mode.dart`, `view_toggle.dart`).
-- **Decorative widgets** with no behaviour: `ambient_backdrop.dart`,
+* **Dev mocks** — `mock_soundcloud_api.dart`, `mock_data.dart`, `mock_tracks.dart`.
+* **Edge-swipe back** (`back_nav.dart`). Trackpad gesture navigation.
+* **Grid/list view toggle** (`view_mode.dart`, `view_toggle.dart`).
+* **Decorative widgets** with no behaviour: `ambient_backdrop.dart`,
   `right_rail.dart` (and its `rail_layout.dart` wrapper), `minted_badge.dart`,
   `live_waveform.dart`, `pressable.dart`, `collection_row.dart`. The rest of
   `shared/widgets/` is ported, some folded into the component it belongs with
   (`media_carousel` → `Shelf`, `feed_post_card` → `FeedCard`,
   `section_header` and `skeleton_box` → `common.tsx`).
-- **`image_cache.dart`** — the webview's own HTTP cache does this.
-- **`tool/package.ps1` and `tool/build_msi.ps1`** — Tauri's bundler replaces
+* **`image_cache.dart`** — the webview's own HTTP cache does this.
+* **`tool/package.ps1` and `tool/build_msi.ps1`** — Tauri's bundler replaces
   them, and no WiX install is needed.
+
+---
+
+## AI Assistance
+
+This project was developed with assistance from **Claude (Anthropic)**. Claude
+was used throughout the port for code generation, refactoring, debugging,
+architecture discussions, and development assistance. All generated code was
+reviewed, tested, and integrated as part of the project.
