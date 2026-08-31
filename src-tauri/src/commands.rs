@@ -544,17 +544,7 @@ pub async fn window_hide_to_tray(app: AppHandle) -> Cmd<()> {
 
 #[tauri::command]
 pub async fn window_show(app: AppHandle) -> Cmd<()> {
-    if let Some(w) = app.get_webview_window("main") {
-        w.show().map_err(err)?;
-        // Hidden and minimised are different states; the tray card has to
-        // recover from both.
-        w.unminimize().map_err(err)?;
-        w.set_focus().map_err(err)?;
-    }
-    // Raising the app dismisses the card that raised it.
-    if let Some(popup) = app.get_webview_window("tray-popup") {
-        popup.hide().ok();
-    }
+    crate::raise_main(&app);
     Ok(())
 }
 

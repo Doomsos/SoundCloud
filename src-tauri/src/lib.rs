@@ -83,6 +83,21 @@ pub fn run() {
         .init();
 
     tauri::Builder::default()
+        // Registered first, so a second launch is intercepted before anything
+        // else starts setting up. Without it, running the exe again while the
+        // window is hidden to the tray builds a whole second app rather than
+        // raising the one already running.
+        .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
+            raise_main(app);
+            // A deep link starts the exe again with the URL as its argument,
+            // and that second process now stops here - so its arguments have
+            // to be handed to the deep-link plugin by hand or the link is lost.
+            #[cfg(desktop)]
+            {
+                use tauri_plugin_deep_link::DeepLinkExt;
+                app.deep_link().handle_cli_arguments(argv.into_iter());
+            }
+        }))
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_deep_link::init())
@@ -222,6 +237,21 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running the application");
+}
+
+/// Brings the main window back to the front, undoing both hidden and
+/// minimised. Shared by the tray card's open action and by a second launch of
+/// the exe, which must raise this window instead of starting its own.
+pub(crate) fn raise_main(app: &tauri::AppHandle) {
+    if let Some(w) = app.get_webview_window("main") {
+        w.show().ok();
+        w.unminimize().ok();
+        w.set_focus().ok();
+    }
+    // Raising the app dismisses the card that raised it.
+    if let Some(popup) = app.get_webview_window("tray-popup") {
+        popup.hide().ok();
+    }
 }
 
 /// Installs the tray icon.
